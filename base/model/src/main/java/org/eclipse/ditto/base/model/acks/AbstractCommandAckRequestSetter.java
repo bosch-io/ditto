@@ -157,20 +157,20 @@ public abstract class AbstractCommandAckRequestSetter<C extends DittoHeadersSett
         final boolean isResponseRequired = headers.isResponseRequired();
 
         if (headers.containsKey(DittoHeaderDefinition.REQUESTED_ACKS.getKey())) {
-            if (isBindResponseRequiredToAddingRemovingImplicitLabel()) {
-                final Set<AcknowledgementRequest> acknowledgementRequests = headers.getAcknowledgementRequests();
-                final Set<AcknowledgementRequest> newRequests = new LinkedHashSet<>(acknowledgementRequests);
-
-                if (isResponseRequired && !acknowledgementRequests.isEmpty()) {
-                    newRequests.add(AcknowledgementRequest.of(implicitAcknowledgementLabel));
-                } else if (!isResponseRequired) {
-                    newRequests.remove(AcknowledgementRequest.of(implicitAcknowledgementLabel));
-                }
-
-                builder.acknowledgementRequests(newRequests);
-
-                return true;
-            }
+//            if (isBindResponseRequiredToAddingRemovingImplicitLabel()) {
+//                final Set<AcknowledgementRequest> acknowledgementRequests = headers.getAcknowledgementRequests();
+//                final Set<AcknowledgementRequest> newRequests = new LinkedHashSet<>(acknowledgementRequests);
+//
+//                if (isResponseRequired && !acknowledgementRequests.isEmpty()) {
+//                    newRequests.add(AcknowledgementRequest.of(implicitAcknowledgementLabel));
+//                } else if (!isResponseRequired) {
+//                    newRequests.remove(AcknowledgementRequest.of(implicitAcknowledgementLabel));
+//                }
+//
+//                builder.acknowledgementRequests(newRequests);
+//
+//                return true;
+//            }
             return false;
         } else {
             if (!hasTimeoutZero && isResponseRequired) {

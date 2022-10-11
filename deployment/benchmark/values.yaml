@@ -156,7 +156,8 @@ connectivity:
     minAvailable: 1
   ## nodeSelector
   ## https://kubernetes.io/docs/concepts/configuration/assign-pod-node/#nodeselector
-  nodeSelector: {}
+  nodeSelector:
+    node.role: "eks-worker-dev-ditto-benchmark"
   ## tolerations
   ## ref: https://kubernetes.io/docs/concepts/configuration/taint-and-toleration/
   tolerations: []
@@ -260,7 +261,8 @@ gateway:
     minAvailable: 1
   ## nodeSelector
   ## https://kubernetes.io/docs/concepts/configuration/assign-pod-node/#nodeselector
-  nodeSelector: {}
+  nodeSelector:
+    node.role: "eks-worker-dev-ditto-benchmark"
   ## tolerations
   ## ref: https://kubernetes.io/docs/concepts/configuration/taint-and-toleration/
   tolerations: []
@@ -346,7 +348,8 @@ policies:
     minAvailable: 1
   ## nodeSelector
   ## https://kubernetes.io/docs/concepts/configuration/assign-pod-node/#nodeselector
-  nodeSelector: {}
+  nodeSelector:
+    node.role: "eks-worker-dev-ditto-benchmark"
   ## tolerations
   ## ref: https://kubernetes.io/docs/concepts/configuration/taint-and-toleration/
   tolerations: []
@@ -432,7 +435,8 @@ things:
     minAvailable: 1
   ## nodeSelector
   ## https://kubernetes.io/docs/concepts/configuration/assign-pod-node/#nodeselector
-  nodeSelector: {}
+  nodeSelector:
+    node.role: "eks-worker-dev-ditto-benchmark"
   ## tolerations
   ## ref: https://kubernetes.io/docs/concepts/configuration/taint-and-toleration/
   tolerations: []
@@ -585,7 +589,8 @@ nginx:
     enabled: true
   ## nodeSelector
   ## https://kubernetes.io/docs/concepts/configuration/assign-pod-node/#nodeselector
-  nodeSelector: {}
+  nodeSelector:
+    node.role: "eks-worker-dev-ditto-benchmark"
   ## tolerations
   ## ref: https://kubernetes.io/docs/concepts/configuration/taint-and-toleration/
   tolerations: []

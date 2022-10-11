@@ -10,17 +10,14 @@ nameOverride: ""
 fullnameOverride: ""
 
 dbconfig:
+  uriSecret: mongodb
   connectivity:
-    uriSecret: mongodb
     ssl: true
   things:
-    uriSecret: mongodb
     ssl: true
   searchDB:
-    uriSecret: mongodb
     ssl: true
   policies:
-    uriSecret: mongodb
     ssl: true
 
 ## ----------------------------------------------------------------------------
@@ -61,8 +58,8 @@ global:
       enabled: true
     ## configure if logs should be pushed to a logstash endpoint
     logstash:
-      enabled: false
-      endpoint: ""
+      enabled: true
+      endpoint: "logstash.monitoring-dev.svc.cluster.local:4560"
     ## enable writing logs to log files
     ## log files can be found on the host under /var/log/ditto
     logFiles:
@@ -92,7 +89,7 @@ connectivity:
   ## enabled controls whether connectivity related resources should be created
   enabled: true
   ## replicaCount for connectivity service
-  replicaCount: 1
+  replicaCount: 10
   ## updateStrategy for connectivity service
   ## ref: https://kubernetes.io/docs/concepts/workloads/controllers/deployment/#strategy
   updateStrategy:
@@ -128,13 +125,13 @@ connectivity:
   ## resources for the connectivity container
   resources:
     requests:
-      cpu: 150m
-      memory: 768Mi
+      cpu: 2.0
+      memory: 10240Mi
     limits:
       # ## no cpu limit to avoid CFS scheduler limits
       # ref: https://doc.akka.io/docs/akka/snapshot/additional/deploy.html#in-kubernetes
       # cpu: ""
-      memory: 768Mi
+      memory: 10240Mi
   ## readinessProbe configuration for connectivity
   ## ref: https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/#configure-probes
   readinessProbe:
@@ -191,7 +188,7 @@ gateway:
   ## if not set a random password will be set
   statusPassword:
   ## replicaCount for gateway service
-  replicaCount: 1
+  replicaCount: 3
   ## updateStrategy for gateway service
   ## ref: https://kubernetes.io/docs/concepts/workloads/controllers/deployment/#strategy
   updateStrategy:
@@ -227,13 +224,13 @@ gateway:
   ## resources for the gateway container
   resources:
     requests:
-      cpu: 150m
-      memory: 512Mi
+      cpu: 2.0
+      memory: 4096Mi
     limits:
       # ## no cpu limit to avoid CFS scheduler limits
       # ref: https://doc.akka.io/docs/akka/snapshot/additional/deploy.html#in-kubernetes
       # cpu: ""
-      memory: 512Mi
+      memory: 4096Mi
   ## readinessProbe configuration for gateway
   ## ref: https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/#configure-probes
   readinessProbe:
@@ -284,7 +281,7 @@ policies:
   ## enabled controls whether policies related resources should be created
   enabled: true
   ## replicaCount for policies service
-  replicaCount: 1
+  replicaCount: 5
   ## updateStrategy for policies service
   ## ref: https://kubernetes.io/docs/concepts/workloads/controllers/deployment/#strategy
   updateStrategy:
@@ -318,13 +315,13 @@ policies:
   ## resources for the policies container
   resources:
     requests:
-      cpu: 150m
-      memory: 512Mi
+      cpu: 2.0
+      memory: 8192Mi
     limits:
       # ## no cpu limit to avoid CFS scheduler limits
       # ref: https://doc.akka.io/docs/akka/snapshot/additional/deploy.html#in-kubernetes
       # cpu: ""
-      memory: 512Mi
+      memory: 8192Mi
   ## readinessProbe configuration for policies
   ## ref: https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/#configure-probes
   readinessProbe:
@@ -370,7 +367,7 @@ things:
   ## enabled controls whether things related resources should be created
   enabled: true
   ## replicaCount for things service
-  replicaCount: 1
+  replicaCount: 5
   ## updateStrategy for things service
   ## ref: https://kubernetes.io/docs/concepts/workloads/controllers/deployment/#strategy
   updateStrategy:
@@ -404,13 +401,13 @@ things:
   ## resources for the things container
   resources:
     requests:
-      cpu: 150m
-      memory: 512Mi
+      cpu: 2.0
+      memory: 10240Mi
     limits:
       # ## no cpu limit to avoid CFS scheduler limits
       # ref: https://doc.akka.io/docs/akka/snapshot/additional/deploy.html#in-kubernetes
       # cpu: ""
-      memory: 512Mi
+      memory: 10240Mi
   ## readinessProbe configuration for things
   ## ref: https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/#configure-probes
   readinessProbe:
@@ -456,7 +453,7 @@ thingsSearch:
   ## enabled controls whether things-search related resources should be created
   enabled: true
   ## replicaCount for things-search service
-  replicaCount: 1
+  replicaCount: 3
   ## updateStrategy for things-search service
   ## ref: https://kubernetes.io/docs/concepts/workloads/controllers/deployment/#strategy
   updateStrategy:
@@ -490,13 +487,13 @@ thingsSearch:
   ## resources for the things-search container
   resources:
     requests:
-      cpu: 150m
-      memory: 512Mi
+      cpu: 2.0
+      memory: 10240Mi
     limits:
       # ## no cpu limit to avoid CFS scheduler limits
       # ref: https://doc.akka.io/docs/akka/snapshot/additional/deploy.html#in-kubernetes
       # cpu: ""
-      memory: 512Mi
+      memory: 10240Mi
   ## readinessProbe configuration for things-search
   ## ref: https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/#configure-probes
   readinessProbe:

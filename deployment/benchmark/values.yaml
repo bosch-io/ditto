@@ -518,7 +518,8 @@ thingsSearch:
     minAvailable: 1
   ## nodeSelector
   ## https://kubernetes.io/docs/concepts/configuration/assign-pod-node/#nodeselector
-  nodeSelector: {}
+  nodeSelector:
+    node.role: "eks-worker-dev-ditto-benchmark"
   ## tolerations
   ## ref: https://kubernetes.io/docs/concepts/configuration/taint-and-toleration/
   tolerations: []

@@ -58,12 +58,14 @@ import org.eclipse.ditto.connectivity.model.Connection;
 import org.eclipse.ditto.connectivity.model.ConnectionId;
 import org.eclipse.ditto.connectivity.model.ConnectivityModelFactory;
 import org.eclipse.ditto.connectivity.model.ConnectivityStatus;
+import org.eclipse.ditto.connectivity.model.FilteredTopic;
 import org.eclipse.ditto.connectivity.model.GenericTarget;
 import org.eclipse.ditto.connectivity.model.HeaderMapping;
 import org.eclipse.ditto.connectivity.model.ReplyTarget;
 import org.eclipse.ditto.connectivity.model.ResourceStatus;
 import org.eclipse.ditto.connectivity.model.Source;
 import org.eclipse.ditto.connectivity.model.Target;
+import org.eclipse.ditto.connectivity.model.Topic;
 import org.eclipse.ditto.connectivity.service.config.ConnectionConfig;
 import org.eclipse.ditto.connectivity.service.config.ConnectivityConfig;
 import org.eclipse.ditto.connectivity.service.config.MonitoringConfig;
@@ -116,6 +118,7 @@ public abstract class BasePublisherActor<T extends PublishTarget> extends Abstra
     private final ConnectionMonitor responseAcknowledgedMonitor;
     private final ConnectionMonitorRegistry<ConnectionMonitor> connectionMonitorRegistry;
     private final List<Optional<ReplyTarget>> replyTargets;
+    private final List<Target> targets;
     private final int acknowledgementSizeBudget;
 
     protected BasePublisherActor(final Connection connection,
@@ -124,7 +127,7 @@ public abstract class BasePublisherActor<T extends PublishTarget> extends Abstra
 
         this.connection = checkNotNull(connection, "connection");
         resourceStatusMap = new HashMap<>();
-        final List<Target> targets = connection.getTargets();
+        targets = connection.getTargets();
         targets.forEach(target -> resourceStatusMap.put(target, getTargetResourceStatus(target)));
         this.connectivityConfig = connectivityConfig;
         connectionConfig = connectivityConfig.getConnectionConfig();
@@ -383,9 +386,24 @@ public abstract class BasePublisherActor<T extends PublishTarget> extends Abstra
     }
 
     private Optional<ReplyTarget> getReplyTargetByIndex(final int replyTargetIndex) {
-        return 0 <= replyTargetIndex && replyTargetIndex < replyTargets.size()
-                ? replyTargets.get(replyTargetIndex)
-                : Optional.empty();
+        if (replyTargetIndex < 0) {
+            return targets.stream()
+                    .filter(target -> target.getTopics().stream()
+                            .map(FilteredTopic::getTopic)
+                            .collect(Collectors.toSet())
+                            .contains(Topic.CONNECTION_DIVERTED_RESPONSES))
+                    .findFirst()
+                    .map(tar ->
+                        ReplyTarget.newBuilder()
+                        .address(tar.getAddress())
+                        .headerMapping(tar.getHeaderMapping())
+                        .build()
+                    );
+        } else if (replyTargetIndex < replyTargets.size()) {
+            return replyTargets.get(replyTargetIndex);
+        } else {
+            return Optional.empty();
+        }
     }
 
     private SendingContext getSendingContextForReplyTarget(final OutboundSignal.Mapped outboundSignal,

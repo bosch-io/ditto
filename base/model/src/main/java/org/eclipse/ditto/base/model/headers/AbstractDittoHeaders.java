@@ -323,7 +323,7 @@ public abstract class AbstractDittoHeaders implements DittoHeaders {
     }
 
     @Override
-    public Optional<Integer> getReplyTarget() {
+    public Optional<Integer> getReplyTargetIndex() {
         // This is an internal header. If NumberFormatException occurs then there is a bug.
         return getStringForDefinition(DittoHeaderDefinition.REPLY_TARGET).map(Integer::valueOf);
     }

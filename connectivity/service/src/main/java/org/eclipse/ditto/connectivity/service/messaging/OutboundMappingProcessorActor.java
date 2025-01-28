@@ -40,6 +40,7 @@ import org.apache.pekko.actor.ActorSelection;
 import org.apache.pekko.actor.ActorSystem;
 import org.apache.pekko.actor.Props;
 import org.apache.pekko.actor.Status;
+import org.apache.pekko.cluster.pubsub.DistributedPubSub;
 import org.apache.pekko.japi.Pair;
 import org.apache.pekko.japi.pf.PFBuilder;
 import org.apache.pekko.stream.QueueOfferResult;
@@ -74,6 +75,7 @@ import org.eclipse.ditto.connectivity.model.LogType;
 import org.eclipse.ditto.connectivity.model.MetricDirection;
 import org.eclipse.ditto.connectivity.model.MetricType;
 import org.eclipse.ditto.connectivity.model.Target;
+import org.eclipse.ditto.connectivity.model.Topic;
 import org.eclipse.ditto.connectivity.service.config.ConnectivityConfig;
 import org.eclipse.ditto.connectivity.service.config.MonitoringConfig;
 import org.eclipse.ditto.connectivity.service.config.mapping.MappingConfig;
@@ -91,6 +93,7 @@ import org.eclipse.ditto.edge.service.placeholders.FeaturePlaceholder;
 import org.eclipse.ditto.edge.service.placeholders.ThingJsonPlaceholder;
 import org.eclipse.ditto.edge.service.placeholders.ThingPlaceholder;
 import org.eclipse.ditto.internal.models.signalenrichment.SignalEnrichmentFacade;
+import org.eclipse.ditto.internal.utils.cluster.DistPubSubAccess;
 import org.eclipse.ditto.internal.utils.config.ScopedConfig;
 import org.eclipse.ditto.internal.utils.pekko.controlflow.AbstractGraphActor;
 import org.eclipse.ditto.internal.utils.pekko.logging.ThreadSafeDittoLoggingAdapter;
@@ -139,6 +142,9 @@ public final class OutboundMappingProcessorActor
      * The name of the dispatcher that runs all mapping tasks and all message handling of this actor and its children.
      */
     private static final String MESSAGE_MAPPING_PROCESSOR_DISPATCHER = "message-mapping-processor-dispatcher";
+    private static final String REPLY_TO_CONNECTION_ID_HEADER = "reply-to-connection-id";
+    private static final String CONNECTION_DIVERTED_RESPONSES = "connection-diverted-responses";
+    private static final String REPLY_TARGET_FROM_TARGETS = "-1";
 
     private static final DittoProtocolAdapter DITTO_PROTOCOL_ADAPTER = DittoProtocolAdapter.newInstance();
     private static final TopicPathPlaceholder TOPIC_PATH_PLACEHOLDER = TopicPathPlaceholder.getInstance();
@@ -161,6 +167,7 @@ public final class OutboundMappingProcessorActor
     private final int processorPoolSize;
     private final DittoRuntimeExceptionToErrorResponseFunction toErrorResponseFunction;
     private final List<OutboundMappingProcessor> outboundMappingProcessors;
+    private final ActorRef mediator;
 
     @SuppressWarnings("unused")
     private OutboundMappingProcessorActor(final ActorRef clientActor,
@@ -190,6 +197,8 @@ public final class OutboundMappingProcessorActor
         signalEnrichmentFacade = ConnectivitySignalEnrichmentProvider.get(system, dittoExtensionConfig).getFacade(this.connection.getId());
         this.processorPoolSize = determinePoolSize(processorPoolSize, mappingConfig.getMaxPoolSize());
         toErrorResponseFunction = DittoRuntimeExceptionToErrorResponseFunction.of(DittoHeadersValidator.get(system, dittoExtensionConfig));
+
+        this.mediator = DistributedPubSub.get(getContext().getSystem()).mediator();
     }
 
     /**
@@ -460,7 +469,7 @@ public final class OutboundMappingProcessorActor
             return CompletableFuture.completedFuture(Collections.singletonList(outboundSignal));
         }
         final JsonFieldSelector extraFields = extraFieldsOptional.get();
-        final Target target = outboundSignal.getTargets().get(0);
+        final Target target = outboundSignal.getTargets().getFirst();
 
 
         final DittoHeaders headers = DittoHeaders.newBuilder()
@@ -612,6 +621,20 @@ public final class OutboundMappingProcessorActor
         }
     }
 
+    @Override
+    public void preStart() throws Exception {
+        super.preStart();
+        final var shouldAcceptDivertedResponses =
+                this.connection.getTargets().stream()
+                        .anyMatch(target -> target.getTopics().stream()
+                                .anyMatch(topic -> topic.getTopic().equals(Topic.CONNECTION_DIVERTED_RESPONSES)));
+        if (shouldAcceptDivertedResponses) {
+            this.mediator.tell(
+                    DistPubSubAccess.subscribeViaGroup(CONNECTION_DIVERTED_RESPONSES + ":" + connection.getId(), connection.getId().toString(),
+                            getSelf()), getSelf());
+        }
+    }
+
     private Source<OutboundSignalWithSender, ?> handleOutboundSignal(final OutboundSignalWithSender outbound,
             final OutboundMappingProcessor outboundMappingProcessor) {
 
@@ -619,6 +642,25 @@ public final class OutboundMappingProcessorActor
         if (logger.isDebugEnabled()) {
             logger.withCorrelationId(source).debug("Handling outbound signal <{}>.", source);
         }
+
+        if (outbound.delegate.getSource() instanceof CommandResponse<?> commandResponse) {
+            final String replyToConnectionId = commandResponse.getDittoHeaders().get(REPLY_TO_CONNECTION_ID_HEADER);
+            if (replyToConnectionId != null && !connection.getId().toString().equals(replyToConnectionId)) {
+                final String topic = CONNECTION_DIVERTED_RESPONSES + ":" + replyToConnectionId;
+                //  modify "ditto-reply-target" header to -1 to signal the publisher actor to
+                //  retrieve the sending context from 'targets' instead of from 'replyTargets'
+                DittoHeaders modifiedDittoHeaders = outbound.delegate.getSource().getDittoHeaders()
+                        .toBuilder()
+                        .putHeader(DittoHeaderDefinition.REPLY_TARGET.getKey(), REPLY_TARGET_FROM_TARGETS)
+                        .build();
+                final OutboundSignalWithSender modifiedOutboundWithSender = OutboundSignalWithSender.of(
+                        outbound.delegate.getSource().setDittoHeaders(modifiedDittoHeaders), outbound.sender);
+                this.mediator.tell(DistPubSubAccess.publishViaGroup(topic, modifiedOutboundWithSender), getSelf());
+
+                return Source.empty();
+            }
+        }
+
         return mapToExternalMessage(outbound, outboundMappingProcessor);
     }
 

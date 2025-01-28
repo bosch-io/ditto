@@ -47,7 +47,7 @@ public final class CommandHeaderRestoration {
             enhancedHeadersBuilder.expectedResponseTypes(headersToRestoreFrom.getExpectedResponseTypes());
         }
         headersToRestoreFrom.getInboundPayloadMapper().ifPresent(enhancedHeadersBuilder::inboundPayloadMapper);
-        headersToRestoreFrom.getReplyTarget().ifPresent(enhancedHeadersBuilder::replyTarget);
+        headersToRestoreFrom.getReplyTargetIndex().ifPresent(enhancedHeadersBuilder::replyTarget);
 
         return (T) signal.setDittoHeaders(enhancedHeadersBuilder.build());
     }

@@ -317,7 +317,7 @@ public final class AcknowledgementAggregatorActorTest {
 
         // THEN
         final var processedResponse = testKit.expectMsgClass(DeleteThingResponse.class);
-        Assertions.assertThat(processedResponse.getDittoHeaders().getReplyTarget()).contains(0);
+        Assertions.assertThat(processedResponse.getDittoHeaders().getReplyTargetIndex()).contains(0);
         Assertions.assertThat(processedResponse.isOfExpectedResponseType()).isFalse();
     }
 

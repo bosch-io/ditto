@@ -215,9 +215,14 @@ The JSON for a source with header mapping could look like this:
 #### Source reply target
 
 A source may define a reply target to publish the responses of incoming commands.
-For a reply target, the address and header mapping are defined in itself, whereas its payload mapping is inherited
+The responses could be sent to a reply target via the same connection or could be diverted to a different connection with defined target listening to a specific topic (see bellow).
+
+When using the same connection for a reply target, the address and header mapping are defined in itself, whereas its payload mapping is inherited
 from the parent source, because a payload mapping definition specifies the transformation for both: incoming and outgoing
 messages.
+
+In case a different connection is used for responses, the address and header mapping are defined in the target connection, as well as the outgoing payload mapping. The incoming payload mapping is still inherited from the source connection.
+In order to divert responses to a different connection, a special header `"reply-to-connection-id"` must be included in header mapping of the source (in the source connection). Its value must be the connection id of the target connection. The target must be configured to listen to topic `"_/_/connections/responses"` 
 
 For example, to publish responses at the target address equal to the `reply-to` header of incoming commands,
 define source header mapping and reply target as follows. If an incoming command does not have the `reply-to` header,
@@ -237,7 +242,7 @@ then its response is dropped.
 The reply target may contain its own header mapping (`"headerMapping"`) in order to map response headers.
 
 In addition, the reply target contains the expected response types (`"expectedResponseTypes"`) which should be 
-published to the reply target.<br/>
+published to the reply target. This must be defined in the reply target of the source connection in both cases - when responses are sent via the same connection and via another connection <br/>
 The following reply targets are available to choose from:
 * **response**: Send back successful responses (e.g. responses after a Thing was successfully modified, 
   but also responses for [query commands](basic-signals-command.html#query-commands)). 
@@ -260,6 +265,23 @@ This is an example `"replyTarget"` containing both header mapping and expected r
       "nack"
     ]
   }
+}
+```
+This is an example of `"targets"` in a separate target connection, that contains the required topic to (internally) receive diverted responses from the source connection and send them (via the target connection) using its address and header mapping:  
+```json
+{
+  "targets": [
+      {
+          "address": "{%raw%}{{ header:reply-to }}{%endraw%}",
+          "topics": [
+              "{%raw%}_/_/connections/responses{%endraw%}"
+          ],
+          "headerMapping": {
+              "content-type": "{{header:content-type}}",
+              "correlation-id": "{{header:correlation-id}}"
+          }
+      }
+  ]
 }
 ```
 

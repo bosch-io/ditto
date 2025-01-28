@@ -39,7 +39,14 @@ public enum Topic {
      *
      * @since 2.1.0
      */
-    CONNECTION_ANNOUNCEMENTS("_/_/connections/announcements", "connection-announcements");
+    CONNECTION_ANNOUNCEMENTS("_/_/connections/announcements", "connection-announcements"),
+
+    /**
+     * Connection target topic for connection responses diverted from another connection.
+     *
+     * @since 3.7 ?
+     */
+    CONNECTION_DIVERTED_RESPONSES("_/_/connections/responses", "connection-diverted-responses");
 
     private final String name;
     private final String pubSubTopic;

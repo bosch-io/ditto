@@ -75,6 +75,8 @@ public final class OutboundMappingProcessorActorTest {
             DittoTracingInitResource.disableDittoTracing();
 
     private static final Connection CONNECTION = createTestConnection();
+    private static final Connection TARGET_CONNECTION = createTargetTestConnection();
+    public static final String TARGET_CONNECTION_ID = "target-connection-id";
 
     @Rule
     public final ActorSystemResource actorSystemResource = ActorSystemResource.newInstance(
@@ -84,6 +86,7 @@ public final class OutboundMappingProcessorActorTest {
 
     private ProtocolAdapterProvider protocolAdapterProvider;
     private TestProbe clientActorProbe;
+    private TestProbe targetClientActorProbe;
     private TestProbe proxyActorProbe;
 
     @Before
@@ -91,6 +94,7 @@ public final class OutboundMappingProcessorActorTest {
         protocolAdapterProvider =
                 ProtocolAdapterProvider.load(TestConstants.PROTOCOL_CONFIG, actorSystemResource.getActorSystem());
         clientActorProbe = actorSystemResource.newTestProbe("clientActor");
+        targetClientActorProbe = actorSystemResource.newTestProbe("targetClientActor");
         proxyActorProbe = actorSystemResource.newTestProbe("proxyActor");
         MockCommandForwarder.create(actorSystemResource.getActorSystem(), proxyActorProbe.ref());
         proxyActorProbe.expectMsgClass(ActorRef.class).tell(proxyActorProbe.ref(), proxyActorProbe.ref());
@@ -123,6 +127,50 @@ public final class OutboundMappingProcessorActorTest {
                     .toList();
             assertThat(ackLabels).containsExactlyInAnyOrder("source1", "target1", "target2");
             acks.forEach(ack -> assertThat(ack.isWeak()).describedAs("Expect weak ack, got: " + ack).isTrue());
+        }};
+    }
+
+    @Test
+    public void sendNotDivertedResponseViaSourceConnection() {
+        new TestKit(actorSystemResource.getActorSystem()) {{
+            final Props sourceProps = OutboundMappingProcessorActor.props(clientActorProbe.ref(),
+                    getProcessors(),
+                    CONNECTION,
+                    TestConstants.CONNECTIVITY_CONFIG,
+                    3);
+            final ActorRef sourceUnderTest = actorSystemResource.newActor(sourceProps);
+
+            final var outboundSignalWithSender = OutboundMappingProcessorActor.OutboundSignalWithSender
+                    .of(retrieveThingResponse(Attributes.newBuilder().build()), getRef());
+
+            sourceUnderTest.tell(outboundSignalWithSender, getRef());
+            clientActorProbe.expectMsgClass(BaseClientActor.PublishMappedMessage.class);
+        }};
+    }
+
+    @Test
+    public void sendDivertedResponseViaTargetConnectionOnly() {
+        new TestKit(actorSystemResource.getActorSystem()) {{
+            final Props sourceProps = OutboundMappingProcessorActor.props(clientActorProbe.ref(),
+                    getProcessors(),
+                    CONNECTION,
+                    TestConstants.CONNECTIVITY_CONFIG,
+                    3);
+            final ActorRef sourceUnderTest = actorSystemResource.newActor(sourceProps);
+
+            final Props targetProps = OutboundMappingProcessorActor.props(targetClientActorProbe.ref(),
+                    getProcessors(),
+                    TARGET_CONNECTION,
+                    TestConstants.CONNECTIVITY_CONFIG,
+                    3);
+            actorSystemResource.newActor(targetProps);
+
+            final var outboundSignalWithSender = OutboundMappingProcessorActor.OutboundSignalWithSender
+                    .of(retrieveThingDivertedResponse(Attributes.newBuilder().build()), getRef());
+
+            sourceUnderTest.tell(outboundSignalWithSender, getRef());
+            clientActorProbe.expectNoMessage();
+            targetClientActorProbe.expectMsgClass(BaseClientActor.PublishMappedMessage.class);
         }};
     }
 
@@ -328,6 +376,22 @@ public final class OutboundMappingProcessorActorTest {
                 .build();
     }
 
+    private static Connection createTargetTestConnection() {
+        final ConnectionType type = ConnectionType.MQTT_5;
+        final ConnectivityStatus status = ConnectivityStatus.OPEN;
+        final String uri = "tcp://localhost:1883";
+        return ConnectivityModelFactory.newConnectionBuilder(ConnectionId.of(TARGET_CONNECTION_ID), type, status, uri)
+                .setTargets(List.of(target5()))
+                .payloadMappingDefinition(ConnectivityModelFactory.newPayloadMappingDefinition(Map.of(
+                        "javascript",
+                        ConnectivityModelFactory.newMappingContext("JavaScript", Map.of(
+                                "incomingScript", "function mapToDittoProtocolMsg() { return null; }",
+                                "outgoingScript", "function mapFromDittoProtocolMsg() { return null; }"
+                        ))
+                )))
+                .build();
+    }
+
     private static Source createTestSource() {
         return ConnectivityModelFactory.newSourceBuilder()
                 .address("source1")
@@ -384,6 +448,15 @@ public final class OutboundMappingProcessorActorTest {
                 .build();
     }
 
+    private static Target target5() {
+        return ConnectivityModelFactory.newTargetBuilder()
+                .address("target5")
+                .authorizationContext(singletonContext(target2Subject()))
+                .topics(ConnectivityModelFactory.newFilteredTopicBuilder(Topic.CONNECTION_DIVERTED_RESPONSES).build())
+                .payloadMapping(ConnectivityModelFactory.newPayloadMapping("javascript"))
+                .build();
+    }
+
     private static AuthorizationContext singletonContext(final AuthorizationSubject subject) {
         return AuthorizationContext.newInstance(DittoAuthorizationContextType.UNSPECIFIED, subject);
     }
@@ -412,6 +485,12 @@ public final class OutboundMappingProcessorActorTest {
         return RetrieveThingResponse.of(thingId(),
                 Thing.newBuilder().setId(thingId()).setAttributes(attributes).build(), null, null,
                 DittoHeaders.empty());
+    }
+
+    private static RetrieveThingResponse retrieveThingDivertedResponse(final Attributes attributes) {
+        return RetrieveThingResponse.of(thingId(),
+                Thing.newBuilder().setId(thingId()).setAttributes(attributes).build(), null, null,
+                DittoHeaders.of(Map.of("reply-to-connection-id", TARGET_CONNECTION_ID)));
     }
 
 }

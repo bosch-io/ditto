@@ -924,7 +924,7 @@ public final class OutboundMappingProcessorActor
 
     private static boolean isCommandResponseWithReplyTarget(final Signal<?> signal) {
         final DittoHeaders dittoHeaders = signal.getDittoHeaders();
-        return signal instanceof CommandResponse && dittoHeaders.getReplyTarget().isPresent();
+        return signal instanceof CommandResponse && dittoHeaders.getReplyTargetIndex().isPresent();
     }
 
     private static Acknowledgement weakAck(final AcknowledgementLabel label,

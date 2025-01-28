@@ -360,7 +360,7 @@ public abstract class BasePublisherActor<T extends PublishTarget> extends Abstra
         if (isResponseOrErrorOrStreamingEvent(mappedOutboundSignal)) {
             final Signal<?> source = mappedOutboundSignal.getSource();
             final DittoHeaders dittoHeaders = source.getDittoHeaders();
-            result = dittoHeaders.getReplyTarget()
+            result = dittoHeaders.getReplyTargetIndex()
                     .flatMap(this::getReplyTargetByIndex)
                     .map(replyTarget -> getSendingContextForReplyTarget(mappedOutboundSignal, replyTarget));
         } else {
